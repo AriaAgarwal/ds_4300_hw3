@@ -1,12 +1,14 @@
 =======================
 Question 1: 
-How many total adverse event reports are in the dataset?
+How many adverse event reports were filed between January 1, 2008 and December 31, 2008?
 
 Query:
-db.reports.countDocuments({})
+db.reports.countDocuments({
+  "receivedate": { $gte: "20080101", $lte: "20081231" }
+})
 
 Output:
-50
+1
 
 =======================
 Question 2: 
