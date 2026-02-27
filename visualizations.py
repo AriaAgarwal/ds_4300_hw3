@@ -1,8 +1,13 @@
 from fda_api import FDA_API
 
 def create_visualizations(fda):
-    fatal = fda.get_fatal_drugs(50, True)
-    print(fatal)
+    recovered = fda.get_fatal_drugs(10, True, "1")
+    #print(recovered)
+    fatal = fda.get_fatal_drugs(10, True, "5")
+    #print(fatal)
+
+    common_reactions = fda.get_common_reactions_by_sex(10)
+    print(common_reactions)
 
 
 
