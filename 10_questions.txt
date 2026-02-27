@@ -1,40 +1,77 @@
 =======================
-Question 1:
-Find all reports where the patient is female and the reaction outcome was fatal.
+Question 1: 
+How many total adverse event reports are in the dataset?
 
 Query:
+db.reports.countDocuments({})
 
 Output:
+50
 
 =======================
 Question 2: 
-Which reports involve a drug administered via injection that also had a serious outcome?
+What are all the unique countries that filed adverse event reports?
 
 Query:
+db.reports.distinct("primarysource.reportercountry")
 
 Output:
+  'BR',
+  'CANADA',
+  'CN',
+  'COUNTRY NOT SPECIFIED',
+  'DK',
+  'ES',
+  'GB',
+  'IT',
+  'JP',
+  'US'
 
 =======================
 Question 3:
-Find all reports where the patient was taking more than 3 drugs simultaneously.
+How many reports are missing the reportduplicate field vs. how many have it?
 
 Query:
+db.reports.countDocuments({ "reportduplicate": { $exists: false } })
+db.reports.countDocuments({ "reportduplicate": { $exists: true } })
 
 Output:
+1
+49
 
 =======================
 Question 4: 
-Find reports where companynumb matches an alphanumeric pattern (starts with 2+ letters followed by digits)? How many reports are missing the reportduplicate field entirely vs. how many have it?
+Find reports where companynumb starts with 2 or more letters followed by digits (only show the report ID and top 10).
 
 Query:
+db.reports.find(
+  { "companynumb": { $regex: /^[A-Za-z]{2,}\d+/ } },
+  { "safetyreportid": 1, "_id": 0 }
+).limit(10)
 
 Output:
+  { safetyreportid: '5801206-7' },
+  { safetyreportid: '10003312' },
+  { safetyreportid: '10003326' },
+  { safetyreportid: '10003328' },
+  { safetyreportid: '10003342' },
+  { safetyreportid: '10003327' },
+  { safetyreportid: '10003340' }
 
 =======================
 Question 5: 
-For the 10 reports involving the most drugs simultaneously, show just the report ID, number of drugs, and the brand names of each drug — sorted descending.
+Find serious reports where the patient onset age is between 18 and 30 (only show the report ID and top 10).
 
 Query:
+db.reports.find(
+  {
+    $and: [
+      { "serious": "1" },
+      { "patient.patientonsetage": { $gte: "18", $lte: "30" } }
+    ]
+  },
+  { "safetyreportid": 1, "_id": 0 }
+).limit(10)
 
 Output:
 
@@ -43,7 +80,7 @@ Question 6:
 What are the 10 most frequently reported adverse reactions across the entire dataset?
 
 Query:
-db.adverse_events.aggregate([
+db.reports.aggregate([
   { $unwind: "$patient.reaction" },
   {
     $group: {
@@ -56,92 +93,71 @@ db.adverse_events.aggregate([
 ])
 
 Output:
+  { _id: 'Diarrhoea', count: 5 },
+  { _id: 'Headache', count: 4 },
+  { _id: 'Malaise', count: 4 },
+  { _id: 'Pyrexia', count: 4 },
+  { _id: 'Swelling', count: 3 },
+  { _id: 'Back pain', count: 3 },
+  { _id: 'Drug ineffective', count: 3 },
+  { _id: 'Fluid retention', count: 3 },
+  { _id: 'Asthenia', count: 3 },
+  { _id: 'Nasal congestion', count: 2 }
 
 =======================
 Question 7: 
-For each reporter qualification type, what percentage of their submitted reports were marked serious?
+For each reporter qualification type, what is the total number of reports and how many were serious?
 
 Query:
-db.adverse_events.aggregate([
+db.reports.aggregate([
   {
     $group: {
       _id: "$primarysource.qualification",
       totalReports: { $sum: 1 },
       seriousReports: {
-        $sum: {
-          $cond: [{ $eq: ["$serious", "1"] }, 1, 0]
-        }
+        $sum: { $cond: [{ $eq: ["$serious", "1"] }, 1, 0] }
       }
     }
   },
-  {
-    $project: {
-      totalReports: 1,
-      seriousReports: 1,
-      percentSerious: {
-        $round: [
-          { $multiply: [{ $divide: ["$seriousReports", "$totalReports"] }, 100] },
-          2
-        ]
-      }
-    }
-  },
-  { $sort: { percentSerious: -1 } }
+  { $sort: { totalReports: -1 } }
 ])
 
 Output:
+  { _id: '5', totalReports: 27, seriousReports: 12 },
+  { _id: '1', totalReports: 12, seriousReports: 4 },
+  { _id: '3', totalReports: 10, seriousReports: 7 },
+  { _id: '2', totalReports: 1, seriousReports: 1 }
 
 =======================
 Question 8: 
-Group patients into age brackets (0–17, 18–30, 31–50, 51–70, 71+) and count how many serious reports fall in each bracket.
+Find reports where the patient was taking more than 3 drugs simultaneously (only show the report ID and top 10).
 
 Query:
-db.adverse_events.aggregate([
+db.reports.find(
   {
-    $match: {
-      "serious": "1",
-      "patient.patientonsetage": { $exists: true }
-    }
+    $expr: { $gt: [ { $size: "$patient.drug" }, 3 ] }
   },
-  {
-    $bucket: {
-      groupBy: { $toDouble: "$patient.patientonsetage" },
-      boundaries: [0, 18, 31, 51, 71, 120],
-      default: "Unknown",
-      output: {
-        count: { $sum: 1 },
-        avgDrugsPerPatient: { $avg: { $size: "$patient.drug" } }
-      }
-    }
-  },
-  {
-    $project: {
-      ageBracket: {
-        $switch: {
-          branches: [
-            { case: { $eq: ["$_id", 0]  }, then: "0-17"  },
-            { case: { $eq: ["$_id", 18] }, then: "18-30" },
-            { case: { $eq: ["$_id", 31] }, then: "31-50" },
-            { case: { $eq: ["$_id", 51] }, then: "51-70" },
-            { case: { $eq: ["$_id", 71] }, then: "71+"   }
-          ],
-          default: "Unknown"
-        }
-      },
-      count: 1,
-      avgDrugsPerPatient: { $round: ["$avgDrugsPerPatient", 2] }
-    }
-  }
-])
+  { "safetyreportid": 1, "_id": 0 }
+).limit(10)
 
 Output:
+  { safetyreportid: '10003305' },
+  { safetyreportid: '10003311' },
+  { safetyreportid: '10003312' },
+  { safetyreportid: '10003304' },
+  { safetyreportid: '10003320' },
+  { safetyreportid: '10003310' },
+  { safetyreportid: '10003328' },
+  { safetyreportid: '10003332' },
+  { safetyreportid: '10003338' },
+  { safetyreportid: '10003340' }
 
 =======================
 Question 9: 
 In a single query, find simultaneously: (a) the top 5 most common reactions and (b) the top 5 drug manufacturers appearing in reports.
 
 Query:
-b.adverse_events.aggregate([
+db.reports.aggregate([
   {
     $facet: {
       topReactions: [
@@ -162,33 +178,50 @@ b.adverse_events.aggregate([
 ])
 
 Output:
+  {
+    topReactions: [
+      { _id: 'Diarrhoea', count: 5 },
+      { _id: 'Headache', count: 4 },
+      { _id: 'Pyrexia', count: 4 },
+      { _id: 'Malaise', count: 4 },
+      { _id: 'Drug ineffective', count: 3 }
+    ],
+    topManufacturers: [
+      { _id: 'Gilead Sciences, Inc.', count: 36 },
+      { _id: 'Aurobindo Pharma Limited', count: 28 },
+      { _id: 'Chartwell RX, LLC', count: 26 },
+      { _id: 'Hikma Pharmaceuticals USA Inc.', count: 18 },
+      { _id: 'Rising Pharma Holdings, Inc.', count: 18 }
+    ]
+  }
 
 =======================
 Question 10: 
-Which 10 countries file the most adverse event reports, and what is the average number of drugs per patient report for each country?
+What are the 10 most common drug classes (pharm_class_epc) appearing in serious adverse event reports?
 
 Query:
-db.adverse_events.aggregate([
-  {
-    $match: {
-      "primarysource.reportercountry": { $exists: true }
-    }
-  },
+db.reports.aggregate([
+  { $match: { "serious": "1" } },
+  { $unwind: "$patient.drug" },
+  { $unwind: "$patient.drug.openfda.pharm_class_epc" },
   {
     $group: {
-      _id: "$primarysource.reportercountry",
-      totalReports: { $sum: 1 },
-      avgDrugsPerReport: { $avg: { $size: "$patient.drug" } }
+      _id: "$patient.drug.openfda.pharm_class_epc",
+      count: { $sum: 1 }
     }
   },
-  { $sort: { totalReports: -1 } },
-  { $limit: 10 },
-  {
-    $project: {
-      totalReports: 1,
-      avgDrugsPerReport: { $round: ["$avgDrugsPerReport", 2] }
-    }
-  }
+  { $sort: { count: -1 } },
+  { $limit: 10 }
 ])
 
 Output:
+  { _id: 'Corticosteroid [EPC]', count: 9 },
+  { _id: 'Endothelin Receptor Antagonist [EPC]', count: 6 },
+  { _id: 'Nonsteroidal Anti-inflammatory Drug [EPC]', count: 5 },
+  { _id: 'Progestin [EPC]', count: 3 },
+  { _id: 'Progestin-containing Intrauterine System [EPC]', count: 3 },
+  { _id: 'B Lymphocyte Stimulator-specific Inhibitor [EPC]', count: 3 },
+  { _id: 'CD20-directed Cytolytic Antibody [EPC]', count: 2 },
+  { _id: 'Benzodiazepine [EPC]', count: 2 },
+  { _id: 'Histamine-2 Receptor Antagonist [EPC]', count: 2 },
+  { _id: 'Microtubule Inhibitor [EPC]', count: 2 }
