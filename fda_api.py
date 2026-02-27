@@ -31,11 +31,15 @@ class FDA_API:
             {"$unwind": "$patient.drug"},
             {"$group": {
                 "_id": "$patient.drug.medicinalproduct",
-                "count": {"$sum": 1}
+                "report_ids": {"$addToSet": "$safetyreportid"}
             }},
-            {"$sort": {"count": sort}},
-            {"$limit": limit},
-            {"$project": {"drug": "$_id", "count": 1, "_id": 0}}
+            {"$project": {
+                "drug": "$_id",
+                "fatal_count": {"$size": "$report_ids"},
+                "_id": 0
+            }},
+            {"$sort": {"fatal_count": sort}},
+            {"$limit": limit}
         ]
 
         return list(self.collection.aggregate(pipeline))

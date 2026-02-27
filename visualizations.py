@@ -22,7 +22,7 @@ def plot_drugs_by_outcome(fda, limit=10):
     for i, (outcome_code, title) in enumerate(outcome_labels.items()):
         data = fda.get_drugs_by_outcome(limit, most_frequent=True, outcome=outcome_code)
         drugs = [d["drug"] for d in data]
-        counts = [d["count"] for d in data]
+        counts = [d["fatal_count"] for d in data]
         ax = axes[i]
         ax.bar(range(len(drugs)), counts, color="steelblue", edgecolor="navy", alpha=0.8)
         ax.set_xticks(range(len(drugs)))

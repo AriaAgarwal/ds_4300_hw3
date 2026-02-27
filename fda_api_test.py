@@ -7,8 +7,13 @@ class FDA_API:
         db = client["fda_reports"]
         self.collection = db["reports"]
 
-    def get_fatal_drugs(self, limit, most_frequent, outcome):
-        col = self.collection
+    def get_drugs_by_outcome(self, limit, most_frequent, outcome):
+        """
+        Gets the counts of most frequent or least frequent drugs by outcome type
+        limit : Number of reports, most_frequent: Most or least frequent events,
+        outcome: 1 (Recovered), 2 (Recovering), 3 (Resolving),
+        4 (Recovered with permanent damage), 5 (Fatal), 6 (Unknown)
+        """
 
         if most_frequent:
             sort = -1
