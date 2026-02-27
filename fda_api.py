@@ -27,7 +27,7 @@ class FDA_API:
 
         pipeline = [
             {"$unwind": "$patient.reaction"},
-            {"$match": {"patient.reaction.reactionoutcome": outcome}},  # now parameterized!
+            {"$match": {"patient.reaction.reactionoutcome": outcome}},
             {"$unwind": "$patient.drug"},
             {"$group": {
                 "_id": "$patient.drug.medicinalproduct",
