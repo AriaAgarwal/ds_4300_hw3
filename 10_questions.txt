@@ -1,17 +1,42 @@
+=======================
 Question 1:
 Find all reports where the patient is female and the reaction outcome was fatal.
 
+Query:
+
+Output:
+
+=======================
 Question 2: 
 Which reports involve a drug administered via injection that also had a serious outcome?
 
+Query:
+
+Output:
+
+=======================
 Question 3:
 Find all reports where the patient was taking more than 3 drugs simultaneously.
 
+Query:
+
+Output:
+
+=======================
 Question 4: 
 Find reports where companynumb matches an alphanumeric pattern (starts with 2+ letters followed by digits)? How many reports are missing the reportduplicate field entirely vs. how many have it?
 
+Query:
+
+Output:
+
+=======================
 Question 5: 
 For the 10 reports involving the most drugs simultaneously, show just the report ID, number of drugs, and the brand names of each drug — sorted descending.
+
+Query:
+
+Output:
 
 =======================
 Question 6: 
