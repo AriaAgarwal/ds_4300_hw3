@@ -7,25 +7,29 @@ class FDA_API:
         db = client["fda_reports"]
         self.collection = db["reports"]
 
-    def get_fatal_drugs(self, limit, fatal):
+    def get_fatal_drugs(self, limit, most_frequent, outcome):
         col = self.collection
 
-        if fatal:
-            sort = 1
-        else:
+        if most_frequent:
             sort = -1
+        else:
+            sort = 1
 
         pipeline = [
             {"$unwind": "$patient.reaction"},
-            {"$match": {"patient.reaction.reactionoutcome": "5"}},
+            {"$match": {"patient.reaction.reactionoutcome": outcome}},
             {"$unwind": "$patient.drug"},
             {"$group": {
                 "_id": "$patient.drug.medicinalproduct",
-                "fatal_count": {"$sum": 1}
+                "report_ids": {"$addToSet": "$safetyreportid"}
+            }},
+            {"$project": {
+                "drug": "$_id",
+                "fatal_count": {"$size": "$report_ids"},
+                "_id": 0
             }},
             {"$sort": {"fatal_count": sort}},
-            {"$limit": limit},
-            {"$project": {"drug": "$_id", "fatal_count": 1, "_id": 0}}
+            {"$limit": limit}
         ]
 
         return list(self.collection.aggregate(pipeline))
