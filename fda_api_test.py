@@ -30,9 +30,14 @@ class FDA_API:
 
         return list(self.collection.aggregate(pipeline))
 
-    def get_common_reactions_by_sex(self, limit):
+    def get_common_reactions_by_sex(self, limit, sex=None):
+        """
+        Get most common reactions by patient sex.
+        sex: None (both), "1" (male), or "2" (female).
+        """
+        sex_filter = {"$in": ["1", "2"]} if sex is None else sex
         pipeline = [
-            {"$match": {"patient.patientsex": {"$in": ["1", "2"]}}},
+            {"$match": {"patient.patientsex": sex_filter}},
             {"$unwind": "$patient.reaction"},
             {
                 "$group": {
