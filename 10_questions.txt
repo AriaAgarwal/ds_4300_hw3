@@ -1,0 +1,169 @@
+Question 1:
+Find all reports where the patient is female and the reaction outcome was fatal.
+
+Question 2: 
+Which reports involve a drug administered via injection that also had a serious outcome?
+
+Question 3:
+Find all reports where the patient was taking more than 3 drugs simultaneously.
+
+Question 4: 
+Find reports where companynumb matches an alphanumeric pattern (starts with 2+ letters followed by digits)? How many reports are missing the reportduplicate field entirely vs. how many have it?
+
+Question 5: 
+For the 10 reports involving the most drugs simultaneously, show just the report ID, number of drugs, and the brand names of each drug — sorted descending.
+
+=======================
+Question 6: 
+What are the 10 most frequently reported adverse reactions across the entire dataset?
+
+Query:
+db.adverse_events.aggregate([
+  { $unwind: "$patient.reaction" },
+  {
+    $group: {
+      _id: "$patient.reaction.reactionmeddrapt",
+      count: { $sum: 1 }
+    }
+  },
+  { $sort: { count: -1 } },
+  { $limit: 10 }
+])
+
+Output:
+
+=======================
+Question 7: 
+For each reporter qualification type, what percentage of their submitted reports were marked serious?
+
+Query:
+db.adverse_events.aggregate([
+  {
+    $group: {
+      _id: "$primarysource.qualification",
+      totalReports: { $sum: 1 },
+      seriousReports: {
+        $sum: {
+          $cond: [{ $eq: ["$serious", "1"] }, 1, 0]
+        }
+      }
+    }
+  },
+  {
+    $project: {
+      totalReports: 1,
+      seriousReports: 1,
+      percentSerious: {
+        $round: [
+          { $multiply: [{ $divide: ["$seriousReports", "$totalReports"] }, 100] },
+          2
+        ]
+      }
+    }
+  },
+  { $sort: { percentSerious: -1 } }
+])
+
+Output:
+
+=======================
+Question 8: 
+Group patients into age brackets (0–17, 18–30, 31–50, 51–70, 71+) and count how many serious reports fall in each bracket.
+
+Query:
+db.adverse_events.aggregate([
+  {
+    $match: {
+      "serious": "1",
+      "patient.patientonsetage": { $exists: true }
+    }
+  },
+  {
+    $bucket: {
+      groupBy: { $toDouble: "$patient.patientonsetage" },
+      boundaries: [0, 18, 31, 51, 71, 120],
+      default: "Unknown",
+      output: {
+        count: { $sum: 1 },
+        avgDrugsPerPatient: { $avg: { $size: "$patient.drug" } }
+      }
+    }
+  },
+  {
+    $project: {
+      ageBracket: {
+        $switch: {
+          branches: [
+            { case: { $eq: ["$_id", 0]  }, then: "0-17"  },
+            { case: { $eq: ["$_id", 18] }, then: "18-30" },
+            { case: { $eq: ["$_id", 31] }, then: "31-50" },
+            { case: { $eq: ["$_id", 51] }, then: "51-70" },
+            { case: { $eq: ["$_id", 71] }, then: "71+"   }
+          ],
+          default: "Unknown"
+        }
+      },
+      count: 1,
+      avgDrugsPerPatient: { $round: ["$avgDrugsPerPatient", 2] }
+    }
+  }
+])
+
+Output:
+
+=======================
+Question 9: 
+In a single query, find simultaneously: (a) the top 5 most common reactions and (b) the top 5 drug manufacturers appearing in reports.
+
+Query:
+b.adverse_events.aggregate([
+  {
+    $facet: {
+      topReactions: [
+        { $unwind: "$patient.reaction" },
+        { $group: { _id: "$patient.reaction.reactionmeddrapt", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 }
+      ],
+      topManufacturers: [
+        { $unwind: "$patient.drug" },
+        { $unwind: "$patient.drug.openfda.manufacturer_name" },
+        { $group: { _id: "$patient.drug.openfda.manufacturer_name", count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 }
+      ]
+    }
+  }
+])
+
+Output:
+
+=======================
+Question 10: 
+Which 10 countries file the most adverse event reports, and what is the average number of drugs per patient report for each country?
+
+Query:
+db.adverse_events.aggregate([
+  {
+    $match: {
+      "primarysource.reportercountry": { $exists: true }
+    }
+  },
+  {
+    $group: {
+      _id: "$primarysource.reportercountry",
+      totalReports: { $sum: 1 },
+      avgDrugsPerReport: { $avg: { $size: "$patient.drug" } }
+    }
+  },
+  { $sort: { totalReports: -1 } },
+  { $limit: 10 },
+  {
+    $project: {
+      totalReports: 1,
+      avgDrugsPerReport: { $round: ["$avgDrugsPerReport", 2] }
+    }
+  }
+])
+
+Output:
