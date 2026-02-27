@@ -20,7 +20,7 @@ def plot_drugs_by_outcome(fda, limit=10):
     axes = axes.flatten()
     # plot each outcome in a subplot
     for i, (outcome_code, title) in enumerate(outcome_labels.items()):
-        data = fda.get_fatal_drugs(limit, most_frequent=True, outcome=outcome_code)
+        data = fda.get_drugs_by_outcome(limit, most_frequent=True, outcome=outcome_code)
         drugs = [d["drug"] for d in data]
         counts = [d["count"] for d in data]
         ax = axes[i]
@@ -36,9 +36,24 @@ def plot_drugs_by_outcome(fda, limit=10):
     plt.tight_layout()
     plt.show()
 
+    return drugs, counts
 
 def create_visualizations(fda):
-    plot_drugs_by_outcome(fda, limit=10)
+
+    recovered = fda.get_drugs_by_outcome(10, True, "1")
+    print("HIIII API CALL", recovered)
+    fatal = fda.get_drugs_by_outcome(10, True, "5")
+    #print(fatal)
+
+    common_reactions = fda.get_common_reactions_by_sex(10)
+    #print(common_reactions)
+
+    outcomes_by_age = fda.get_outcomes_by_age_bucket(10)
+    #print(outcomes_by_age)
+
+    drugs, counts = plot_drugs_by_outcome(fda, limit=10)
+    print("HI DRUGS:", drugs)
+    print("HI COUNTS:", counts)
 
 
 def main():
